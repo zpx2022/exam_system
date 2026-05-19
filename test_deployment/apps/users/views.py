@@ -315,7 +315,6 @@ class AdminUserViewSet(viewsets.ModelViewSet):
         """创建用户"""
         return super().create(request, *args, **kwargs)
 
-    @extend_schema(parameters=__import__('apps.users.schema', fromlist=['admin_user_list_extra_params']).admin_user_list_extra_params)
     def list(self, request, *args, **kwargs):
         """用户列表 - 返回标准响应格式"""
         queryset = self.filter_queryset(self.get_queryset())
