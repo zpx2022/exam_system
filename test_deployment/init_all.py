@@ -8,14 +8,16 @@ import os
 import sys
 import subprocess
 import django
-import mysql.connector
+# 替换：import mysql.connector → 改用 MySQLdb
+import MySQLdb  # mysqlclient 的包名
 from pathlib import Path
+from dotenv import load_dotenv
+
 
 def run_command(command, description):
     """运行命令并处理结果"""
     print(f"🔄 {description}...")
     try:
-        # Windows下使用UTF-8编码
         result = subprocess.run(
             command,
             shell=True,
@@ -39,14 +41,22 @@ def run_command(command, description):
         print(f"❌ {description}异常: {e}")
         return False
 
+
 def create_database():
-    """创建数据库"""
+    """从 .env 读取配置创建数据库"""
     print("📊 创建数据库...")
+    
+    # 加载 .env 文件
+    env_path = Path(__file__).parent / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+    
     try:
-        conn = mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password=''
+        conn = MySQLdb.connect(
+            host=os.getenv('DB_HOST', 'localhost'),
+            user=os.getenv('DB_USER', 'root'),
+            passwd=os.getenv('DB_PASSWORD', 'root'),  # 与 settings.py 默认值一致
+            charset='utf8mb4'
         )
         cursor = conn.cursor()
         cursor.execute("CREATE DATABASE IF NOT EXISTS exam_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
@@ -58,6 +68,7 @@ def create_database():
     except Exception as e:
         print(f"❌ 数据库创建失败: {e}")
         return False
+
 
 def init_database_data():
     """初始化数据库数据"""
@@ -87,6 +98,7 @@ def init_database_data():
         print(f"❌ 数据初始化失败: {e}")
         return False
 
+
 def main():
     """主函数"""
     print("=" * 60)
@@ -103,7 +115,7 @@ def main():
         print("❌ 数据库创建失败，请检查MySQL服务")
         sys.exit(1)
     
-    # 步骤2: 设置Django环境并运行迁移
+    # 步骤2: 生成迁移文件并迁移
     print("\n🔄 步骤2: 运行数据库迁移")
     
     # 设置Django环境
@@ -116,9 +128,14 @@ def main():
         print(f"❌ Django环境设置失败: {e}")
         sys.exit(1)
     
-    # 运行迁移
-    if not run_command(f"{sys.executable} manage.py migrate", "运行数据库迁移"):
-        print("❌ 数据库迁移失败")
+    # 2.1 生成迁移文件
+    if not run_command(f"{sys.executable} manage.py makemigrations", "生成迁移文件"):
+        print("❌ 生成迁移文件失败")
+        sys.exit(1)
+    
+    # 2.2 执行迁移
+    if not run_command(f"{sys.executable} manage.py migrate", "执行迁移"):
+        print("❌ 执行迁移失败")
         sys.exit(1)
     
     # 步骤3: 初始化数据库数据
@@ -133,6 +150,7 @@ def main():
     print("\n📋 默认管理员账号:")
     print("   用户名: admin")
     print("   密码: admin123")
+
 
 if __name__ == '__main__':
     main()
